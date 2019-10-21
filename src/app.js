@@ -2,6 +2,11 @@ import React from "react";
 import { render } from "react-dom";
 import { withStyles } from "@material-ui/core/styles";
 import Chart from "./chart";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Button from 'react-bootstrap/Button';
+import ButtonToolbar from "react-bootstrap/ButtonToolbar";
+import DropdownButton from "react-bootstrap/DropdownButton";
+import DropdownItem from "react-bootstrap/DropdownItem";
 
 const styles = theme => ({
   "chart-container": {
@@ -97,6 +102,28 @@ class App extends React.Component {
           data={this.state.lineChartData}
           options={this.state.lineChartOptions}
         />
+        <div className={"container"}>
+          <div className={"row"}>
+            <div className={"col-md-auto"}>
+              <DropdownButton id="dropdown-basic-button" title="Order type">
+                <DropdownItem href="#/action-1">Market</DropdownItem>
+                <DropdownItem href="#/action-2">Limit</DropdownItem>
+                <DropdownItem href="#/action-3">Stop</DropdownItem>
+              </DropdownButton>
+            </div>
+            <div className={"col"}>
+              <Button variant={"danger"} block>Cancel</Button>
+            </div>
+          </div>
+        </div>
+        <div className={"row"}>
+          <div className={"col"}>
+            <Button variant={"primary"} block>Execute</Button>
+          </div>
+          <div className={"col"}>
+            <Button variant={"danger"} block>Cancel</Button>
+          </div>
+        </div>
       </div>
     );
   }
