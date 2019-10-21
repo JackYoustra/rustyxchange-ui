@@ -57,7 +57,7 @@ class App extends React.Component {
       ]
     };
 
-    this.ws = new WebSocket("wss://ws-feed.gdax.com");
+    this.ws = new WebSocket("wss://ws-feed.gdax.com"); // replace this with the feed
 
     this.ws.onopen = () => {
       this.ws.send(JSON.stringify(subscribe));
