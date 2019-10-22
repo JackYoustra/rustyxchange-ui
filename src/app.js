@@ -105,19 +105,20 @@ class App extends React.Component {
 
     this.ws = new WebSocket("wss://ws-feed.gdax.com"); // replace this with the ticker feed
 
-    this.submitsocket = new WebSocket("wss://ws-feed.gdax.com");
+    this.submitsocket = new WebSocket("ws://10.146.202.32:8888");
 
     this.submitsocket.onopen = () => {
         // authentication: send 32 bits with length of username string
-      const username = "pie";
+      console.log("Connected with server");
+        const username = "pie";
         const usernameBytes = toUTF8Array(username);
-        let payload = new ArrayBuffer(usernameBytes.length + 4);
-        payload.set(toBytesInt32(usernameBytes.length), 0);
-      payload.set(usernameBytes, 4)
-      this.submitsocket.send(bytes);
+        let payload = concatBuffers(toBytesInt32(usernameBytes.length), usernameBytes);
+        this.submitsocket.send(payload);
+      this.setState({ session_id: Math.floor(Math.random() * (2**32)) })
     }
 
     this.submitsocket.onmessage = e => {
+      console.log("Heard back from server");
       // we're authenticated!
       // store the session id we get back
       const response = new Uint32Array(e.data);
@@ -173,7 +174,7 @@ class App extends React.Component {
 
   sendOrder(isBuySide, isLimit, ticker, limit, quantity) {
       console.assert(this.state.session_id !== "undefined");
-      let payload = new ArrayBuffer(26);
+
       var firstByte = 0;
       // first two bits are command bits, always set to zero
       // next bit is if its buy side
@@ -181,9 +182,10 @@ class App extends React.Component {
           firstByte = 0b00000100;
       }
       payload.set(firstByte, 0);
-      payload.set(toBytesInt32(this.state.session_id), 1); // then the auth token
+      const sessionIDBytes = toBytesInt32(this.state.session_id);
+      var limitedByte = 0;
       if (isLimit) {
-          payload.set(1, 5);
+          limitByte = 1;
       }
       const tickerBytes = toUTF8Array(ticker);
       console.assert(tickerBytes.length === 4, "Ticker byes is " + tickerBytes + " long, expected 4");
@@ -191,7 +193,11 @@ class App extends React.Component {
       payload.set(toBytesInt64(limit), 10);
       payload.set(toBytesInt64(quantity), 18);
 
-      this.submitsocket.send(payload);
+      const buyByte = new Uint8Array(1);
+      const limitByte = new Uint8Array(1);
+    const payload = concatBuffers(buyByte, );
+
+    this.submitsocket.send(payload);
   }
 
   onDropdownMenuChange(eventKey) {
@@ -275,6 +281,20 @@ function toBytesInt64 (num) {
     const view = new DataView(arr);
     view.setBigUint64(0, num, false); // byteOffset = 0; litteEndian = false
     return arr;
+}
+
+function concatTypedArrays(a, b) { // a, b TypedArray of same type
+  var c = new (a.constructor)(a.length + b.length);
+  c.set(a, 0);
+  c.set(b, a.length);
+  return c;
+}
+
+function concatBuffers(a, b) {
+  return concatTypedArrays(
+      new Uint8Array(a.buffer || a),
+      new Uint8Array(b.buffer || b)
+  ).buffer;
 }
 
 export default withStyles(styles, { withTheme: true })(App);
