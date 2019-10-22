@@ -56,6 +56,7 @@ class App extends React.Component {
   state = {
     selectedOrderType: 'Limit',
     session_id: undefined,
+    tickerRef: "",
     lineChartData: {
       labels: [],
       datasets: [
@@ -107,13 +108,12 @@ class App extends React.Component {
     this.submitsocket = new WebSocket("wss://ws-feed.gdax.com");
 
     this.submitsocket.onopen = () => {
-      // authentication: send 32 bits with length of username string
+        // authentication: send 32 bits with length of username string
       const username = "pie";
-      const usernameBytes = new Uint8Array(toUTF8Array(username));
-      const bytes = new Uint8Array(username.length + 4);
-      const lengthArr = new Uint32Array([username.length])
-      bytes.set(lengthArr, 0);
-      bytes.set(usernameBytes, lengthArr.length)
+        const usernameBytes = toUTF8Array(username);
+        let payload = new ArrayBuffer(usernameBytes.length + 4);
+        payload.set(toBytesInt32(usernameBytes.length), 0);
+      payload.set(usernameBytes, 4)
       this.submitsocket.send(bytes);
     }
 
@@ -160,17 +160,38 @@ class App extends React.Component {
   }
 
   onBuyPressed() {
-    console.log("Buy")
+    this.sendTemplateOrder(true);
   }
 
   onSellPressed() {
-    console.log("Sell")
+    this.sendTemplateOrder(false);
   }
 
-  sendOrder(side, type, ticker, limit, quantity) {
+  sendTemplateOrder(isBuySide) {
+      this.sendOrder(isBuySide, false, this.tickerRef, 0, 1);
+  }
 
-    this.submitsocket.send();
+  sendOrder(isBuySide, isLimit, ticker, limit, quantity) {
+      console.assert(this.state.session_id !== "undefined");
+      let payload = new ArrayBuffer(26);
+      var firstByte = 0;
+      // first two bits are command bits, always set to zero
+      // next bit is if its buy side
+      if (isBuySide) {
+          firstByte = 0b00000100;
+      }
+      payload.set(firstByte, 0);
+      payload.set(toBytesInt32(this.state.session_id), 1); // then the auth token
+      if (isLimit) {
+          payload.set(1, 5);
+      }
+      const tickerBytes = toUTF8Array(ticker);
+      console.assert(tickerBytes.length === 4, "Ticker byes is " + tickerBytes + " long, expected 4");
+      payload.set(tickerBytes, 6);
+      payload.set(toBytesInt64(limit), 10);
+      payload.set(toBytesInt64(quantity), 18);
 
+      this.submitsocket.send(payload);
   }
 
   onDropdownMenuChange(eventKey) {
@@ -222,7 +243,7 @@ class App extends React.Component {
                 </DropdownButton>
               </Col>
               <Col>
-                <Form.Control placeholder={"Ticker"}/>
+                <Form.Control placeholder={"Ticker"}  inputRef={(ref) => {this.tickerRef = ref}} />
               </Col>
             </Form.Row>
           </Grid>
@@ -240,6 +261,20 @@ class App extends React.Component {
       </Container>
     </>;
   }
+}
+
+function toBytesInt32 (num) {
+    const arr = new ArrayBuffer(4); // an Int32 takes 4 bytes
+    const view = new DataView(arr);
+    view.setUint32(0, num, false); // byteOffset = 0; litteEndian = false
+    return arr;
+}
+
+function toBytesInt64 (num) {
+    const arr = new ArrayBuffer(8); // an Int64 takes 8 bytes
+    const view = new DataView(arr);
+    view.setBigUint64(0, num, false); // byteOffset = 0; litteEndian = false
+    return arr;
 }
 
 export default withStyles(styles, { withTheme: true })(App);
